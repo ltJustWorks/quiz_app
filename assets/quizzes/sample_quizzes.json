@@ -1,0 +1,25 @@
+{
+  "quizzes": [
+    {
+      "quizId": "biology_cells_01",
+      "quizName": "Biology: Cells Basics",
+      "description": "Intro quiz on cell structure and function",
+      "questions": [
+        {
+          "id": "q1",
+          "prompt": "Which organelle is known as the powerhouse of the cell?",
+          "options": [
+            { "label": "A", "text": "Nucleus" },
+            { "label": "B", "text": "Ribosome" },
+            { "label": "C", "text": "Mitochondrion" },
+            { "label": "D", "text": "Golgi apparatus" },
+            { "label": "E", "text": "Lysosome" }
+          ],
+          "correctAnswer": "C",
+          "hint": "It is responsible for producing ATP energy.",
+          "explanation": "Mitochondria generate most of the cell’s ATP."
+        }
+      ]
+    }
+  ]
+}
