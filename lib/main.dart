@@ -32,6 +32,9 @@ class QuizBootstrapScreen extends StatefulWidget {
 }
 
 class _QuizBootstrapScreenState extends State<QuizBootstrapScreen> {
+  static const String _builtInFolder = 'Built-in';
+  static const String _defaultImportedFolder = 'Imported';
+
   late Future<_BootstrapData> futureData;
 
   Future<_BootstrapData> _loadAllData() async {
@@ -43,7 +46,8 @@ class _QuizBootstrapScreenState extends State<QuizBootstrapScreen> {
             .toList();
 
     final storage = QuizStorageService();
-    final savedQuizzes = await storage.loadSavedQuizzes();
+    final storageData = await storage.loadStorageData();
+    final savedQuizzes = storageData.quizzes;
 
     final merged = [...assetQuizzes];
     for (final quiz in savedQuizzes) {
@@ -77,6 +81,13 @@ class _QuizBootstrapScreenState extends State<QuizBootstrapScreen> {
 
     return _BootstrapData(
       quizzes: merged,
+      folders: {
+        _builtInFolder,
+        _defaultImportedFolder,
+        ...storageData.folders,
+        ...savedQuizzes.map((quiz) => quiz.folderName),
+      }.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase())),
       sessions: sessions,
       initialResumeQuizId: latestIncompleteSession?.quizId,
     );
@@ -108,6 +119,7 @@ class _QuizBootstrapScreenState extends State<QuizBootstrapScreen> {
         final data = snapshot.data!;
         return QuizListScreen(
           initialQuizzes: data.quizzes,
+          initialFolders: data.folders,
           initialSessionStates: data.sessions,
           initialResumeQuizId: data.initialResumeQuizId,
         );
@@ -118,11 +130,13 @@ class _QuizBootstrapScreenState extends State<QuizBootstrapScreen> {
 
 class _BootstrapData {
   final List<Quiz> quizzes;
+  final List<String> folders;
   final Map<String, QuizSessionState> sessions;
   final String? initialResumeQuizId;
 
   _BootstrapData({
     required this.quizzes,
+    required this.folders,
     required this.sessions,
     required this.initialResumeQuizId,
   });

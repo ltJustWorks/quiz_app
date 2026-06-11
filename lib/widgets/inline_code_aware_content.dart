@@ -10,7 +10,7 @@ class InlineCodeAwareContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = baseStyle ?? theme.textTheme.bodyLarge;
+    final style = baseStyle ?? theme.textTheme.bodyLarge ?? const TextStyle();
 
     final text = data.trim();
 
@@ -46,9 +46,9 @@ class InlineCodeAwareContent extends StatelessWidget {
           ),
           child: Text(
             codeText,
-            style: style?.copyWith(
+            style: style.copyWith(
               fontFamily: 'monospace',
-              fontSize: (style?.fontSize ?? 16) * 0.95,
+              fontSize: (style.fontSize ?? 16) * 0.95,
             ),
           ),
         ),
