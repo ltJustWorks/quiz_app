@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
+import 'dart:async';
 import '../models/quiz.dart';
 import '../controllers/quiz_controller.dart';
 import '../widgets/quiz_rich_content.dart';
 import '../models/quiz_session_state.dart';
 import '../services/quiz_session_storage_service.dart';
 import 'quiz_result_screen.dart';
-import '../widgets/inline_code_aware_content.dart';
 
 class QuizPlayScreen extends StatefulWidget {
   final Quiz quiz;
@@ -22,8 +22,10 @@ class QuizPlayScreen extends StatefulWidget {
   State<QuizPlayScreen> createState() => _QuizPlayScreenState();
 }
 
-class _QuizPlayScreenState extends State<QuizPlayScreen> {
+class _QuizPlayScreenState extends State<QuizPlayScreen>
+    with WidgetsBindingObserver {
   late QuizController controller;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -33,19 +35,41 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
       sessionStorage: QuizSessionStorageService(),
       initialState: widget.initialSessionState,
     );
+    WidgetsBinding.instance.addObserver(this);
     controller.addListener(_onControllerChanged);
 
     if (widget.initialSessionState == null ||
         !widget.initialSessionState!.isCompleted) {
       controller.saveProgress();
     }
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    controller.pauseTracking();
     controller.removeListener(_onControllerChanged);
     controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      controller.pauseTracking();
+    }
+
+    if (state == AppLifecycleState.resumed) {
+      controller.resumeTracking();
+    }
   }
 
   void _onControllerChanged() {
@@ -163,6 +187,11 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                     "Question ${controller.currentIndex + 1} / ${widget.quiz.questions.length}",
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Time: ${controller.formattedElapsedTime}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                   const SizedBox(height: 16),
 
                   QuizRichContent(
@@ -191,14 +220,22 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
 
                   const SizedBox(height: 24),
 
-                  if (controller.hasAnsweredCorrectly)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (controller.isLastQuestion) {
-                            controller.completeQuiz().then((_) {
-                              if (!mounted) return;
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      OutlinedButton(
+                        onPressed:
+                            controller.canGoToPreviousQuestion
+                                ? controller.previousQuestion
+                                : null,
+                        child: const Text("Previous"),
+                      ),
+                      if (controller.hasAnsweredCorrectly)
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (controller.isLastQuestion) {
+                              await controller.completeQuiz();
+                              if (!context.mounted) return;
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
@@ -206,19 +243,32 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                       (_) => QuizResultScreen(
                                         score: controller.score,
                                         total: widget.quiz.questions.length,
+                                        elapsedTime:
+                                            controller.formattedElapsedTime,
+                                        quiz: widget.quiz,
+                                        sessionState:
+                                            controller.currentSessionSnapshot,
                                       ),
                                 ),
                               );
-                            });
-                          } else {
-                            controller.nextQuestion();
-                          }
-                        },
-                        child: Text(
-                          controller.isLastQuestion ? "Finish" : "Next",
+                            } else {
+                              controller.nextQuestion();
+                            }
+                          },
+                          child: Text(
+                            controller.isLastQuestion ? "Finish" : "Next",
+                          ),
+                        )
+                      else
+                        OutlinedButton(
+                          onPressed:
+                              controller.canGoToNextQuestion
+                                  ? controller.nextQuestion
+                                  : null,
+                          child: const Text("Next"),
                         ),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
             ),
